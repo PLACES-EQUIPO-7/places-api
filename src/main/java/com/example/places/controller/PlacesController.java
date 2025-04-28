@@ -1,8 +1,6 @@
 package com.example.places.controller;
 
-import com.example.places.model.places.service.DTOs.LinkUserPLaceDto;
-import com.example.places.model.places.service.DTOs.UserPLaceDTO;
-import com.example.places.model.places.service.DTOs.PlaceUsersDTO;
+import com.example.places.model.places.service.DTOs.*;
 import com.example.places.model.places.service.PlacesService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -30,10 +28,27 @@ public class PlacesController {
 
     }
 
-    @PostMapping("/register/user_place")
-    public ResponseEntity<Void> registerPlace(@Valid @RequestBody UserPLaceDTO userPlaceDTO) {
+    @GetMapping("/by/nit/{dni}")
+    public ResponseEntity<PlaceDTO> getPLaceByNit(@PathVariable @Valid String nit) {
 
-        placesService.registerPlaceAndPlaceOwner(userPlaceDTO);
+        PlaceDTO placeUsersDTOS = placesService.getPlacesByDNI(nit);
+
+        return ResponseEntity.status(HttpStatus.OK).body(placeUsersDTOS);
+
+    }
+
+    @PostMapping("/create")
+    public ResponseEntity<Void> createPlace(@Valid @RequestBody PlaceDTO placeDTO) {
+
+        placesService.registerPlace(placeDTO);
+
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @PostMapping("/register/user")
+    public ResponseEntity<Void> registerUser(@Valid @RequestBody UserDTO userDTO) {
+
+        placesService.registerUser(userDTO);
 
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }

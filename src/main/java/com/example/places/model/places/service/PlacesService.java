@@ -1,6 +1,5 @@
 package com.example.places.model.places.service;
 
-import com.example.places.exceptions.DataConflictException;
 import com.example.places.exceptions.DataNotFoundException;
 import com.example.places.model.places.Place;
 import com.example.places.model.places.User;
@@ -12,18 +11,23 @@ import com.example.places.repository.UserRepository;
 import com.example.places.utils.enums.ErrorCode;
 import com.example.places.utils.enums.UserPlaceRole;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.UnexpectedRollbackException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class PlacesService {
 
+    private static final Logger log = LoggerFactory.getLogger(PlacesService.class);
     private final UserPlaceRepository userPlaceRepository;
 
     private final PlaceRepository placeRepository;
@@ -50,31 +54,37 @@ public class PlacesService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional
-    public void registerPlaceAndPlaceOwner(UserPLaceDTO userPLaceDTO) {
+    public PlaceDTO getPlacesByDNI(@Valid String dni) {
 
-        User user = userRepository.save(buildUser(userPLaceDTO.getUser()));
+        Place place = placeRepository.findByNit(dni);
 
-        Place place = null;
-        try {
-            place = placeRepository.save(buildPlace(userPLaceDTO.getPlace()));
-
-        } catch (DataIntegrityViolationException e) {
-            throw new DataConflictException("place already created", ErrorCode.PLACE_ALREADY_EXISTS);
-        }
-
-        UserPlace userPlace = UserPlace.builder()
-                .user(user)
-                .place(place)
-                .role(UserPlaceRole.PLACE_OWNER)
-                .isEnabled(true)
-                .build();
-
-        userPlaceRepository.save(userPlace);
+        return buildPlaceDTO(place);
 
     }
 
-    @Transactional
+
+    public void registerPlace(PlaceDTO placeDTO) {
+
+        try {
+            placeRepository.save(buildPlace(placeDTO));
+
+        } catch (DataIntegrityViolationException e) {
+            log.warn(String.format("Place:%s already exist", placeDTO.getNit()));
+        }
+
+    }
+
+    public void registerUser(UserDTO userDTO) {
+
+        try {
+            userRepository.save(buildUser(userDTO));
+
+        } catch (DataIntegrityViolationException e) {
+            log.warn(String.format("User:%s already exist", userDTO.getId()));
+        }
+
+    }
+
     public void linkUserPace(LinkUserPLaceDto linkUserPLaceDto) {
 
 
@@ -84,17 +94,23 @@ public class PlacesService {
             throw new DataNotFoundException("place not found", ErrorCode.PLACE_NOT_FOUND);
         }
 
-        User user = userRepository.save(User.builder().id(linkUserPLaceDto.getUserId()).build());
+        Optional<User> user = userRepository.findById(linkUserPLaceDto.getUserId());
 
-        boolean alreadyLinked = userPlaceRepository.existsByUserAndPlace(user, place);
+        if (user.isEmpty()) {
+            throw new DataNotFoundException("user not found", ErrorCode.USER_NOT_FOUND);
+        }
 
+        boolean alreadyLinked = userPlaceRepository.existsByUserAndPlace(user.get(), place);
+
+        log.warn("not linked" + linkUserPLaceDto);
         if (!alreadyLinked) {
+            log.warn("linked" + linkUserPLaceDto);
             userPlaceRepository.save(
                     UserPlace.builder()
-                            .user(user)
+                            .user(user.get())
                             .place(place)
                             .isEnabled(true)
-                            .role(UserPlaceRole.PLACE_EMPLOYEE)
+                            .role(linkUserPLaceDto.getRole())
                             .build());
         }
 
