@@ -35,4 +35,6 @@ public class PlaceDTO {
     @NotNull
     private Double latitude;
 
+    private boolean isEnabled;
+
 }

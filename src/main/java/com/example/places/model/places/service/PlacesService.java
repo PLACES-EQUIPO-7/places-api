@@ -52,6 +52,7 @@ public class PlacesService {
                                 .id(up.getUser().getId())
                                 .build())
                         .role(up.getRole())
+                        .isEnabled(up.isEnabled())
                         .build())
                 .collect(Collectors.toList());
     }
@@ -258,6 +259,7 @@ public class PlacesService {
                 .zipCode(place.getZipCode())
                 .reputation(place.getReputation())
                 .id(place.getId())
+                .isEnabled(place.isEnabled())
                 .build();
     }
 
