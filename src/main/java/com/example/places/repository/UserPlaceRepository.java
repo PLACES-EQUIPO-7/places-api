@@ -14,8 +14,8 @@ public interface UserPlaceRepository extends JpaRepository<UserPlace, Long> {
     @Query("select up from UserPlace up where up.user.id = :userId")
     List<UserPlace> getUserPlaceRelationshipsFromUser(String userId);
 
-    @Query("select up from UserPlace up where up.place.nit = :placeNit")
-    List<UserPlace> getUserPlaceRelationshipsFromPlace(String placeNit);
+    @Query("select up from UserPlace up where up.place.id = :placeId")
+    List<UserPlace> getUserPlaceRelationshipsFromPlace(Long placeId);
 
     boolean existsByUserAndPlace(User user, Place place);
 }

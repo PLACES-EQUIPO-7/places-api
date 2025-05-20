@@ -27,6 +27,8 @@ public class PlaceUsersDTO {
 
         private UserPlaceRole role;
 
+        private Boolean isEnabled;
+
     }
 }
 

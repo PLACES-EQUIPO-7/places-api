@@ -62,12 +62,14 @@ public class PlacesController {
     }
 
     @GetMapping("/place/users")
-    public ResponseEntity<PlaceUsersDTO> linkUserPlace(@Valid @RequestParam String placeNit) {
+    public ResponseEntity<PlaceUsersDTO> getPLaceUsers(@Valid @RequestParam("place_id") Long placeId) {
 
-        PlaceUsersDTO placeUsersDTO = placesService.getPlaceUsers(placeNit);
+        PlaceUsersDTO placeUsersDTO = placesService.getPlaceUsers(placeId);
 
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        return ResponseEntity.status(HttpStatus.OK).body(placeUsersDTO);
     }
+
+
 
 
 

@@ -1,48 +1,42 @@
-package com.example.places.model.places;
+package com.example.places.model.places.service.DTOs;
 
 import com.example.places.utils.enums.ReceiverType;
 import com.example.places.utils.enums.ShipmentStatus;
 import com.example.places.utils.enums.ShipmentType;
-import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.OffsetDateTime;
 
-@Entity
-@Table(name = "shipment")
+@Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Getter
-@Setter
 @Builder
-public class Shipment {
+public class ShipmentDTO {
 
-    @Id
-    @NotNull
-    @Column(name = "id")
     private Long id;
 
-    @Column(name = "type")
+    @NotNull
     private ShipmentType type;
 
-    @Column(name = "status")
+    @NotNull
     private ShipmentStatus status;
 
-    @Column(name = "receiver_id")
+    @NotBlank
     private String receiverId;
 
-    @Column(name = "receiver_type")
+    @NotNull
     private ReceiverType receiverType;
 
-    @ManyToOne
-    @JoinColumn(name = "place_id")
-    private Place place;
+    @NotNull
+    private Long placeId;
 
-    @Column(name = "phrase")
+    @NotNull
     private String phrase;
 
-    @Column(name = "delivered_at")
     private OffsetDateTime deliveredAt;
-
 }
