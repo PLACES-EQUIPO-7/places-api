@@ -1,10 +1,13 @@
 package com.example.places.controller;
 
 import com.example.places.model.places.service.DTOs.*;
+import com.example.places.model.places.service.EmailService;
 import com.example.places.model.places.service.PlacesService;
 import com.example.places.utils.enums.ShipmentStatus;
 import com.example.places.utils.enums.ShipmentType;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,6 +16,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/places")
+@Slf4j
 public class ShipmentsController {
 
     private final PlacesService placesService;

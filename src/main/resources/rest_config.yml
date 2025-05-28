@@ -1,0 +1,5 @@
+clients:
+  users:
+    base-url: ${USERS_BASE_URL}
+    connection-timeout: 5000
+    socket-timeout: 5000

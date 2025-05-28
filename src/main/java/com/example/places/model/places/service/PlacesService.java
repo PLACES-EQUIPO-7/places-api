@@ -6,6 +6,7 @@ import com.example.places.model.places.Shipment;
 import com.example.places.model.places.User;
 import com.example.places.model.places.UserPlace;
 import com.example.places.model.places.service.DTOs.*;
+import com.example.places.model.places.service.DTOs.users.GlobalUserDTO;
 import com.example.places.repository.PlaceRepository;
 import com.example.places.repository.ShipmentRepository;
 import com.example.places.repository.UserPlaceRepository;
@@ -40,6 +41,10 @@ public class PlacesService {
     private final UserRepository userRepository;
 
     private final ShipmentRepository shipmentRepository;
+
+    private final EmailService emailService;
+
+    private final UsersRestService usersRestService;
 
     
     public List<UserPLaceDTO> getPlacesByUser(@Valid @RequestParam String userId) {
@@ -121,15 +126,185 @@ public class PlacesService {
 
     public ShipmentDTO createShipment(ShipmentDTO shipmentDTO) {
 
-        Shipment shipment = buildShipmentFromShipmentDTO(shipmentDTO);
-
         if (!placeRepository.existsById(shipmentDTO.getPlaceId())) {
             throw new DataNotFoundException("place not found", ErrorCode.PLACE_NOT_FOUND);
         }
 
-        shipmentRepository.save(shipment);
+        Shipment shipment = shipmentRepository.save(buildShipmentFromShipmentDTO(shipmentDTO));
+
+
+        if (ShipmentStatus.PENDING.equals(shipment.getStatus())) {
+
+            try {
+                GlobalUserDTO userDTO = usersRestService.getUser(shipment.getReceiverId());
+                Place place = placeRepository.findById(shipment.getPlace().getId())
+                        .orElseThrow(() -> new DataNotFoundException("place not found", ErrorCode.PLACE_NOT_FOUND));
+                String subject = buildSubject(shipmentDTO, userDTO);
+                String body = buildBody(shipmentDTO, userDTO, place);
+                emailService.sendEmail(userDTO.getEmail(), subject, body);
+            } catch (Exception e) {
+                log.error("Error sending email: {}", e.getMessage());
+            }
+
+        }
+
 
         return shipmentDTO;
+    }
+
+    private String buildBody(ShipmentDTO shipmentDTO, GlobalUserDTO userDTO, Place place) {
+
+        if (shipmentDTO.getType() == ShipmentType.PICK_UP
+                && shipmentDTO.getStatus() == ShipmentStatus.PENDING) {
+            return String.format("""
+                    <!DOCTYPE html>
+                    <html lang="es">
+                    <head>
+                      <meta charset="UTF-8">
+                      <title>Envío en camino</title>
+                      <style>
+                        body {
+                          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                          background-color: #f4f4f4;
+                          color: #333;
+                          padding: 20px;
+                        }
+                        .container {
+                          background-color: white;
+                          border-radius: 8px;
+                          padding: 25px;
+                          max-width: 600px;
+                          margin: 0 auto;
+                          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                        }
+                        h2 {
+                          color: #2c3e50;
+                        }
+                        .info {
+                          margin: 20px 0;
+                          font-size: 16px;
+                          line-height: 1.6;
+                        }
+                        .keyword {
+                          font-weight: bold;
+                          color: #d35400;
+                          font-size: 18px;
+                        }
+                        .footer {
+                          margin-top: 30px;
+                          font-size: 13px;
+                          color: #888;
+                          text-align: center;
+                        }
+                      </style>
+                    </head>
+                    <body>
+                      <div class="container">
+                        <h2>¡Tu envío ya está en camino! 🚚</h2>
+                        <div class="info">
+                          Tu envío <strong>%s</strong> ya se encuentra en camino.<br>
+                          Llegará a la agencia <strong>%s</strong> en la dirección:<br>
+                          <em>%s</em><br><br>
+                          Para reclamarlo, usa la palabra clave:<br>
+                          <span class="keyword">%s</span>
+                        </div>
+                        <div class="footer">
+                          Gracias por confiar en nosotros.
+                        </div>
+                      </div>
+                    </body>
+                    </html>
+                    """, shipmentDTO.getId(), place.getName(), place.getAddress(),  shipmentDTO.getPhrase());
+        }
+
+        if (shipmentDTO.getType() == ShipmentType.DEVOLUTION
+                && shipmentDTO.getStatus() == ShipmentStatus.PENDING) {
+            return String.format("""
+                    <!DOCTYPE html>
+                                           <html lang="es">
+                                           <head>
+                                             <meta charset="UTF-8">
+                                             <title>Instrucciones de devolución</title>
+                                             <style>
+                                               body {
+                                                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                                                 background-color: #f0f2f5;
+                                                 color: #333;
+                                                 padding: 20px;
+                                               }
+                                               .container {
+                                                 background-color: #ffffff;
+                                                 border-radius: 8px;
+                                                 padding: 25px;
+                                                 max-width: 600px;
+                                                 margin: 0 auto;
+                                                 box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+                                               }
+                                               h2 {
+                                                 color: #c0392b;
+                                               }
+                                               .info {
+                                                 margin: 20px 0;
+                                                 font-size: 16px;
+                                                 line-height: 1.6;
+                                               }
+                                               .highlight {
+                                                 font-weight: bold;
+                                                 color: #2980b9;
+                                               }
+                                               .code {
+                                                 display: inline-block;
+                                                 background-color: #f6f6f6;
+                                                 padding: 6px 12px;
+                                                 border-radius: 5px;
+                                                 font-family: monospace;
+                                                 color: #e74c3c;
+                                                 font-size: 16px;
+                                               }
+                                               .footer {
+                                                 margin-top: 30px;
+                                                 font-size: 13px;
+                                                 color: #888;
+                                                 text-align: center;
+                                               }
+                                             </style>
+                                           </head>
+                                           <body>
+                                             <div class="container">
+                                               <h2>Instrucciones para devolver tu paquete 📦</h2>
+                                               <div class="info">
+                                                 Lleva el paquete <span class="highlight">%s</span> a la agencia <span class="highlight">%s</span> ubicada en:<br>
+                                                 <em>%s</em><br><br>
+                                                 Presenta la siguiente clave de devolución:<br>
+                                                 <span class="code">%s</span>
+                                               </div>
+                                               <div class="footer">
+                                                 Si tienes dudas, contáctanos. Estamos aquí para ayudarte.
+                                               </div>
+                                             </div>
+                                           </body>
+                                           </html>
+                    
+            """, shipmentDTO.getId(), place.getName(), place.getAddress(), shipmentDTO.getPhrase());
+        }
+
+        return null;
+    }
+
+    private String buildSubject(ShipmentDTO shipmentDTO, GlobalUserDTO userDTO) {
+       
+        if (shipmentDTO.getType() == ShipmentType.PICK_UP 
+                && shipmentDTO.getStatus() == ShipmentStatus.PENDING) {
+            return String.format("Hola %s,tu envío esta en camino", userDTO.getFirstName());
+        }
+
+        if (shipmentDTO.getType() == ShipmentType.DEVOLUTION
+                && shipmentDTO.getStatus() == ShipmentStatus.PENDING) {
+            return String.format("Hola %s, estas son las instrucciones de devolucion", userDTO.getFirstName());
+        }
+        
+        return null;
+        
     }
 
     public List<ShipmentDTO> getShipments(ShipmentType type, ShipmentStatus status, Long placeId) {
@@ -275,6 +450,90 @@ public class PlacesService {
 
         if (changeStatusDTO.getNewStatus() == ShipmentStatus.DELIVERED) {
             shipment.get().setDeliveredAt(OffsetDateTime.now());
+        }
+
+        if (ShipmentType.PICK_UP.equals(shipment.get().getType())
+            && ShipmentStatus.RECEIVED.equals(changeStatusDTO.getNewStatus())) {
+
+            try {
+                GlobalUserDTO userDTO = usersRestService.getUser(shipment.get().getReceiverId());
+                Place place = placeRepository.findById(shipment.get().getPlace().getId())
+                        .orElseThrow(() -> new DataNotFoundException("place not found", ErrorCode.PLACE_NOT_FOUND));
+                String body = String.format("""
+                        <!DOCTYPE html>
+                        <html lang="es">
+                        <head>
+                          <meta charset="UTF-8">
+                          <title>Envío recibido en agencia</title>
+                          <style>
+                            body {
+                              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                              background-color: #eef2f5;
+                              color: #333;
+                              padding: 20px;
+                            }
+                            .container {
+                              background-color: #ffffff;
+                              border-radius: 10px;
+                              padding: 25px;
+                              max-width: 600px;
+                              margin: auto;
+                              box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+                            }
+                            h2 {
+                              color: #27ae60;
+                            }
+                            .info {
+                              margin: 20px 0;
+                              font-size: 16px;
+                              line-height: 1.6;
+                            }
+                            .highlight {
+                              font-weight: bold;
+                              color: #2c3e50;
+                            }
+                            .code {
+                              display: inline-block;
+                              background-color: #f4f4f4;
+                              padding: 8px 14px;
+                              border-radius: 6px;
+                              font-family: monospace;
+                              color: #d35400;
+                              font-size: 16px;
+                              margin-top: 5px;
+                            }
+                            .footer {
+                              margin-top: 30px;
+                              font-size: 13px;
+                              color: #777;
+                              text-align: center;
+                            }
+                          </style>
+                        </head>
+                        <body>
+                          <div class="container">
+                            <h2>¡Tu envío ya está en la agencia! 📬</h2>
+                            <div class="info">
+                              Tu envío <span class="highlight">%s</span> ha sido recibido en la agencia <span class="highlight">%s</span> ubicada en:<br>
+                              <em>%s</em><br><br>
+                              Recuerda que puedes reclamarlo con la siguiente clave:<br>
+                              <span class="code">%s</span>
+                            </div>
+                            <div class="footer">
+                              Gracias por usar nuestro servicio. ¡Estamos para ayudarte!
+                            </div>
+                          </div>
+                        </body>
+                        </html>
+                        
+                        """, shipment.get().getId(), place.getName(), place.getAddress(), shipment.get().getPhrase());
+                String subject = String.format(
+                        "Hola %s, ya puedes ir a retirar tu envio %s", userDTO.getFirstName(), shipment.get().getId());
+                emailService.sendEmail(userDTO.getEmail(), subject, body);
+            } catch (Exception e) {
+                log.error("Error sending email: {}", e.getMessage());
+            }
+
         }
 
         shipmentRepository.save(shipment.get());
